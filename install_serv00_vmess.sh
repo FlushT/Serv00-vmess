@@ -6,11 +6,11 @@ red="\033[1;91m"
 green="\e[1;32m"
 yellow="\e[1;33m"
 purple="\e[1;35m"
-red() { echo -e "\e[1;91m$1\033[0m"; }
-green() { echo -e "\e[1;32m$1\033[0m"; }
-yellow() { echo -e "\e[1;33m$1\033[0m"; }
-purple() { echo -e "\e[1;35m$1\033[0m"; }
-reading() { read -p "$(red "$1")" "$2"; }
+red() { echo -e "\e[1;91m\$1\033[0m"; }
+green() { echo -e "\e[1;32m\$1\033[0m"; }
+yellow() { echo -e "\e[1;33m\$1\033[0m"; }
+purple() { echo -e "\e[1;35m\$1\033[0m"; }
+reading() { read -p "$(red "\$1")" "\$2"; }
 
 USERNAME=$(whoami)
 HOSTNAME=$(hostname)
@@ -57,14 +57,22 @@ read_nz_variables() {
 install_singbox() {
 echo -e "${yellow}本脚本安装vmess协议${purple}(vmess-ws)${re}"
 echo -e "${yellow}开始运行前，请确保在面板${purple}已开放1个tcp端口${re}"
-echo -e "${yellow}面板${purple}Additional services中的Run your own applications${yellow}已开启为${purplw}Enabled${yellow}状态${re}"
+echo -e "${yellow}面板${purple}Additional services中的Run your own applications${yellow}已开启为${purple}Enabled${yellow}状态${re}"
 reading "\n确定继续安装吗？【y/n】: " choice
   case "$choice" in
     [Yy])
         cd $WORKDIR
         read_nz_variables
         read_vmess_port
-	    argo_configure
+        reading "请输入VMess的UUID（留空将使用默认UUID）: " input_uuid
+        if [ -z "$input_uuid" ]; then
+            export UUID='6522de6f-2942-402c-86ce-8f77f542e129'
+            green "使用默认UUID: $UUID"
+        else
+            export UUID=$input_uuid
+            green "你的UUID为: $UUID"
+        fi
+        argo_configure
         generate_config
         download_singbox && wait
         run_sb && sleep 3
@@ -79,9 +87,9 @@ uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice
     case "$choice" in
        [Yy])
-          kill -9 $(ps aux | grep '[w]eb' | awk '{print $2}')
-          kill -9 $(ps aux | grep '[b]ot' | awk '{print $2}')
-          # kill -9 $(ps aux | grep '[n]pm' | awk '{print $2}')
+          kill -9 $(ps aux | grep '[w]eb' | awk '{print \$2}')
+          kill -9 $(ps aux | grep '[b]ot' | awk '{print \$2}')
+          # kill -9 $(ps aux | grep '[n]pm' | awk '{print \$2}')
           rm -rf $WORKDIR
           ;;
         [Nn]) exit 0 ;;
@@ -122,10 +130,6 @@ argo_configure() {
                 green "你的argo固定隧道密钥为: $ARGO_AUTH"
             fi
           done           
-	  # reading "请输入argo固定隧道域名: " ARGO_DOMAIN
-   #        green "你的argo固定隧道域名为: $ARGO_DOMAIN"
-   #        reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
-   #        green "你的argo固定隧道密钥为: $ARGO_AUTH"
 	  echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
       else
           green "ARGO隧道变量未设置，将使用临时隧道"
@@ -156,19 +160,9 @@ EOF
 download_singbox() {
   ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
   if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
-      # if [[ -z $ARGO_AUTH || -z $ARGO_DOMAIN ]]; then
-      # 	FILE_INFO=("https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-sb web")
-      # else
-      	FILE_INFO=("https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-sb web" "https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-bot13 bot")
-      # fi 
-      # FILE_INFO=("https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-sb web" "https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-bot13 bot" "https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-swith npm")
+      FILE_INFO=("https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-sb web" "https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-bot13 bot")
   elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      # if [[ -z $ARGO_AUTH || -z $ARGO_DOMAIN ]]; then
-      # 	FILE_INFO=("https://github.com/FlushT/serv00/releases/download/1.0.0/amd64-web web")
-      # else
-      	FILE_INFO=("https://github.com/FlushT/serv00/releases/download/1.0.0/amd64-web web" "https://github.com/FlushT/serv00/releases/download/1.0.0/amd64-bot bot")
-      # fi
-      # FILE_INFO=("https://github.com/FlushT/serv00/releases/download/1.0.0/amd64-web web" "https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-bot bot" "https://github.com/FlushT/serv00/releases/download/1.0.0/arm64-npm npm")
+      FILE_INFO=("https://github.com/FlushT/serv00/releases/download/1.0.0/amd64-web web" "https://github.com/FlushT/serv00/releases/download/1.0.0/amd64-bot bot")
   else
       echo "Unsupported architecture: $ARCH"
       exit 1
@@ -189,7 +183,6 @@ download_singbox() {
 
 # Generating Configuration Files
 generate_config() {
-
   cat > config.json << EOF
 {
   "log": {
@@ -401,7 +394,7 @@ sleep 1
 IP=$(curl -s ipv4.ip.sb || { ipv6=$(curl -s --max-time 1 ipv6.ip.sb); echo "[$ipv6]"; })
 sleep 1
 # get ipinfo
-ISP=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g') 
+ISP=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print \$26"-"\$18}' | sed -e 's/ /_/g') 
 sleep 1
 # yellow "注意：v2ray或其他软件的跳过证书验证需设置为true,否则hy2或tuic节点可能不通\n"
 cat > list.txt <<EOF
